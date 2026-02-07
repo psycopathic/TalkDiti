@@ -8,16 +8,21 @@ import cors from 'cors';
 import { app, server } from './lib/Socket.js';
 
 import path from 'path';
+import { fileURLToPath } from 'url';
 
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 //initialization
 dotenv.config();
 const port = process.env.PORT|| 5000;
-const __dirname = path.resolve();
 
 //middleware
 app.use(cors({
-    origin:"http://localhost:5173",
+    origin: process.env.NODE_ENV === "production" 
+        ? process.env.FRONTEND_URL 
+        : "http://localhost:5173",
     credentials:true
 }))
 app.use(cookieParser());
@@ -28,15 +33,18 @@ app.use('/api/auth',authRoutes);
 app.use('/api/messages',messageRoutes);
 
 if(process.env.NODE_ENV === "production") {
-    app.use(express.static(path.join(__dirname, '../frontend/dist')));
-    app.get('*', (req, res) => {
-        res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
+    const distPath = path.join(__dirname, '../../frontend/dist');
+    app.use(express.static(distPath));
+    
+    // Handle React routing - return index.html for all non-API routes
+    app.get(/^(?!\/api).*/, (req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
     });
-}   
-
-app.get('/', (req, res) => {
-    res.send('Hello World!')
-})
+} else {
+    app.get('/', (req, res) => {
+        res.send('Hello World!')
+    });
+}
 
 server.listen(port, () => {
     console.log(`Example app listening on port ${port}`)
